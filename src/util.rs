@@ -17,17 +17,41 @@ pub fn ensure_binary_exists(name: &str) -> Result<()> {
 
 pub fn find_in_path(name: &str) -> Option<PathBuf> {
     let candidate = Path::new(name);
-    if candidate.is_absolute() && candidate.exists() {
+    if candidate.is_absolute() && is_executable_file(candidate) {
         return Some(candidate.to_path_buf());
     }
     let path = env::var_os("PATH")?;
     env::split_paths(&path)
         .map(|dir| dir.join(name))
-        .find(|candidate| candidate.exists())
+        .find(|candidate| is_executable_file(candidate))
 }
 
 pub fn path_is_under(path: &str, prefix: &str) -> bool {
     path == prefix || path.starts_with(&format!("{prefix}/"))
+}
+
+fn is_executable_file(path: &Path) -> bool {
+    let Ok(metadata) = fs::metadata(path) else {
+        return false;
+    };
+    metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
+}
+
+pub fn shell_escape(value: &str) -> String {
+    if value.is_empty() {
+        return "''".to_string();
+    }
+    let mut escaped = String::with_capacity(value.len() + 2);
+    escaped.push('\'');
+    for ch in value.chars() {
+        if ch == '\'' {
+            escaped.push_str("'\"'\"'");
+        } else {
+            escaped.push(ch);
+        }
+    }
+    escaped.push('\'');
+    escaped
 }
 
 pub fn file_name(path: &OsStr) -> Option<String> {
@@ -63,23 +87,6 @@ pub fn add_ro_bind_if_exists(command: &mut Command, source: &str, target: &str) 
         prepare_bind_dir(command, Path::new(target));
         command.arg("--ro-bind").arg(source).arg(target);
     }
-}
-
-pub fn bind_absolute_wrapper_if_exists(command: &mut Command, source: &Path, target: &str) {
-    if source.exists() && Path::new(target).exists() {
-        prepare_bind_parent(command, Path::new(target));
-        command.arg("--ro-bind").arg(source).arg(target);
-    }
-}
-
-pub fn is_executable_path(path: &Path) -> bool {
-    let Ok(metadata) = fs::metadata(path) else {
-        return false;
-    };
-    if !metadata.is_file() {
-        return false;
-    }
-    metadata.permissions().mode() & 0o111 != 0
 }
 
 pub fn set_file_mode(path: &Path, mode: u32) -> Result<()> {
@@ -119,5 +126,27 @@ mod tests {
         assert!(path_is_under("/root/project", "/root"));
         assert!(path_is_under("/root", "/root"));
         assert!(!path_is_under("/rooted", "/root"));
+    }
+
+    #[test]
+    fn find_in_path_requires_executable_bit() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let executable = tempdir.path().join("ok-tool");
+        let regular = tempdir.path().join("plain-file");
+        fs::write(&executable, "#!/bin/sh\n").unwrap();
+        fs::write(&regular, "hello").unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        fs::set_permissions(&regular, fs::Permissions::from_mode(0o644)).unwrap();
+
+        let previous = env::var_os("PATH");
+        unsafe {
+            env::set_var("PATH", tempdir.path());
+        }
+        assert_eq!(find_in_path("ok-tool"), Some(executable));
+        assert_eq!(find_in_path("plain-file"), None);
+        match previous {
+            Some(value) => unsafe { env::set_var("PATH", value) },
+            None => unsafe { env::remove_var("PATH") },
+        }
     }
 }
