@@ -28,20 +28,20 @@ const HELP_TEMPLATE: &str = "\
 {before-help}{name} {version}
 {about}
 
-Użycie:
+Usage:
   {usage}
 
-Polecenia:
+Commands:
 {subcommands}
 
-Opcje:
+Options:
   {options}
 
 {after-help}
 ";
 
 const AFTER_HELP: &str = "\
-Przykłady:
+Examples:
   teleport-box doctor root@host --identity-file ~/.ssh/id_ed25519
   teleport-box shell root@host
   teleport-box exec root@host -- sh -c 'uname -a'
@@ -74,7 +74,7 @@ pub enum Commands {
 pub struct ConnectionArgs {
     #[arg(
         value_name = "TARGET",
-        help = "[user@]host[:port] albo ssh://user@host:port"
+        help = "[user@]host[:port] or ssh://user@host:port"
     )]
     pub target: Option<String>,
     #[arg(long, hide = true)]

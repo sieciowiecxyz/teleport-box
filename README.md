@@ -1,43 +1,43 @@
 # teleport-box
 
-`teleport-box` uruchamia lokalny program w fake remote Linux environment zbudowanym z `sshfs`, `ssh` i `bwrap`.
+`teleport-box` runs a local program inside a fake remote Linux environment built from `sshfs`, `ssh`, and `bwrap`.
 
-## Co to jest
+## What it is
 
-To lokalne narzędzie, które sprawia, że proces uruchomiony na twoim hoście widzi zdalny filesystem i wykonuje komendy na zdalnym Linuksie, bez instalowania helpera po stronie serwera.
+It is a local tool that makes a process running on your machine see a remote filesystem and execute commands on a remote Linux host, without installing any helper on the server side.
 
-## Po co to jest
+## What it is for
 
-Główny use case to offline devices i inne środowiska, gdzie trzeba szybko debugować zdalny system przy pomocy lokalnego Codexa.
+The main use case is offline devices and similar environments where you need fast remote debugging with a local Codex instance.
 
-Zamiast stawiać osobnego agenta na serwerze:
+Instead of deploying a separate agent on the server:
 
-- używasz zwykłego SSH
-- trzymasz lokalnego Codexa
-- pracujesz na zdalnych plikach i zdalnych toolach
+- you use plain SSH
+- you keep Codex local
+- you work against remote files and remote tools
 
-## Jak to działa
+## How it works
 
-`teleport-box` skleja trzy elementy:
+`teleport-box` combines three pieces:
 
-- `sshfs` montuje zdalny filesystem
-- `ssh` wykonuje zdalne komendy
-- `bwrap` zamyka lokalny proces w sandboxie, który wygląda jak spójne zdalne środowisko
+- `sshfs` mounts the remote filesystem
+- `ssh` executes remote commands
+- `bwrap` isolates the local process inside a sandbox that looks like one coherent remote environment
 
-Zasada projektu jest prosta:
+The core rule is simple:
 
 - remote tools are truth
 - local host tools are denied by default
 
-Jeżeli binarki nie ma na zdalnym hoście, to ma być błąd, a nie lokalny fallback.
+If a binary does not exist on the remote host, the correct behavior is failure, not a silent local fallback.
 
-## Składnia komendy
+## Command syntax
 
 ```bash
-teleport-box <doctor|shell|exec|codex> [user@]host[:port] [opcje] [-- komenda]
+teleport-box <doctor|shell|exec|codex> [user@]host[:port] [options] [-- command]
 ```
 
-Najczęstsze przykłady:
+Common examples:
 
 ```bash
 teleport-box doctor root@host --identity-file ~/.ssh/id_ed25519
@@ -46,12 +46,12 @@ teleport-box exec root@host --identity-file ~/.ssh/id_ed25519 -- sh -c 'uname -a
 teleport-box codex root@host --identity-file ~/.ssh/id_ed25519 -- exec -C /root "Run uname -a"
 ```
 
-## Z czego korzysta
+## Dependencies
 
-Projekt korzysta z:
+The project relies on:
 
-- `sshfs` do montowania zdalnego filesystemu
-- `ssh` do zdalnego exec
-- `bwrap` do lokalnego sandboxa
+- `sshfs` for mounting the remote filesystem
+- `ssh` for remote execution
+- `bwrap` for the local sandbox
 
-Wymagany jest Linux po stronie hosta lokalnego oraz Linux-like host zdalny z SSH, SFTP i `sh`.
+It requires Linux on the local host side and a Linux-like remote host with SSH, SFTP, and `sh`.
